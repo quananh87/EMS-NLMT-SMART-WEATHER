@@ -83,7 +83,7 @@ select{padding:6px;border-radius:8px;border:1px solid var(--ln);background:var(-
 <tr><td>5. Solis</td><td>SolisCloud API</td><td>Modbus</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
 <tr><td>6. Solax</td><td>SolaxCloud API</td><td>Modbus / Pocket WiFi</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
 <tr><td>7. Growatt</td><td>Growatt OpenAPI</td><td>Modbus</td><td><span class="tag">Chờ tài khoản API</span></td></tr></table></div>
-<p class="note">Mọi hãng quy về một chuẩn dữ liệu chung: công suất PV, tải, mức pin, công suất lưới, chế độ sạc/xả. Giá điện trong demo là giả định (thấp điểm 1.100đ, bình thường 1.800đ, cao điểm 3.000đ/kWh).</p></div>
+<p class="note">Mọi hãng quy về một chuẩn dữ liệu chung: công suất PV, tải, mức pin, công suất lưới, chế độ sạc/xả. Tiền điện mặc định tính theo biểu giá sinh hoạt 5 bậc của EVN. Có thể chuyển sang giá theo giờ giả định (thấp điểm 1.100đ, bình thường 1.800đ, cao điểm 3.000đ/kWh) ở mục 7.</p></div>
 <div class="card"><h2>6. Liên kết inverter</h2>
 <div class="row"><label>Hãng<select id="lb"></select></label><label style="flex:1;min-width:180px">Tên khách / công trình<input type="text" id="ln" class="aiq" placeholder="VD: Nhà anh Tân"></label></div>
 <div class="row" id="lf" style="margin-top:8px"></div>
@@ -93,12 +93,12 @@ select{padding:6px;border-radius:8px;border:1px solid var(--ln);background:var(-
 <div id="ld" style="margin-top:8px"></div>
 <p class="note">Bản demo: thông tin đăng nhập chỉ nằm trong ô nhập, không được lưu và không gửi đi đâu. Đừng nhập mật khẩu thật vào bản demo. Khi có gateway, nút Liên kết sẽ gọi gateway để kiểm tra kết nối thật.</p></div>
 <div class="card"><h2>7. Thống kê điện năng: tiêu thụ, sạc, xả</h2>
-<div class="row"><button class="wb on" id="vd">Theo ngày</button><button class="wb" id="vm">Theo tháng</button><label style="flex-direction:row;align-items:center;gap:6px" id="mw">Tháng <select id="msel"></select></label></div>
+<div class="row"><button class="wb on" id="vd">Theo ngày</button><button class="wb" id="vm">Theo tháng</button><label style="flex-direction:row;align-items:center;gap:6px" id="mw">Tháng <select id="msel"></select></label><label style="flex-direction:row;align-items:center;gap:6px">Cách tính<select id="tf"><option value="bac">Bậc thang EVN (5 bậc)</option><option value="tou">Giá theo giờ giả định</option></select></label><label style="flex-direction:row;align-items:center;gap:6px">VAT (%)<input type="number" id="vat" value="8" min="0" max="20" style="width:64px"></label></div>
 <div class="dec" id="kp"></div>
 <svg viewBox="0 0 760 220" id="bc" style="margin-top:10px"></svg>
 <div class="leg"><span><i style="background:var(--hm)"></i>Tiêu thụ</span><span><i style="background:var(--bt)"></i>Sạc pin</span><span><i style="background:var(--pv)"></i>Xả pin</span></div>
 <div class="tw" style="max-height:340px;overflow-y:auto;margin-top:8px"><table id="tb"></table></div>
-<p class="note">Đơn vị kWh. Dữ liệu mô phỏng 12 tháng theo mùa mưa/khô. Khi nối API thật sẽ thay bằng số liệu đọc từ inverter.</p></div>
+<p class="note">Biểu giá điện sinh hoạt từ 1/11/2026 (chưa VAT): bậc 1 (0–100 kWh) 1.901; bậc 2 (101–200) 2.289; bậc 3 (201–400) 2.894; bậc 4 (401–700) 3.456; bậc 5 (trên 700) 3.844 đ/kWh. Tiền điện tính trên số kWh mua từ lưới của cả tháng; khi xem theo ngày, tiền điện mỗi ngày là phần tăng thêm của hóa đơn tháng. VAT nhập tay (hiện 8%). Đơn vị kWh. Cách đối chiếu: Solar phát = Solar cấp thẳng + Sạc Solar + Xuất lưới. Tiêu thụ = Solar cấp thẳng + Xả pin + (Mua lưới − Sạc lưới). Pin tính hiệu suất 95% mỗi chiều nên Xả pin luôn nhỏ hơn Sạc pin khoảng 10%. Dữ liệu mô phỏng theo mùa mưa/khô, khi nối API thật sẽ thay bằng số liệu từ inverter.</p></div>
 <div class="card"><h2>8. Trợ lý Claude theo dõi hệ thống</h2>
 <div class="row" id="chips"></div>
 <div class="row" style="margin-top:8px"><input type="text" id="q" class="aiq" placeholder="Hỏi về số liệu đang xem…"><button class="play" id="ask">Hỏi Claude</button></div>
@@ -106,6 +106,9 @@ select{padding:6px;border-radius:8px;border:1px solid var(--ln);background:var(-
 </div>
 <script>
 const $=i=>document.getElementById(i);
+const TI=[[100,1901],[100,2289],[200,2894],[300,3456],[1e9,3844]];
+function tier(k){let c=0,r=k;for(const [w,p] of TI){const u=Math.min(r,w);c+=u*p;r-=u;if(r<=0)break}return c}
+function dayCost(){return $("tf").value==="bac"?tier(R.gridKwh*30)*(1+(+$("vat").value||0)/100)/30:R.cost}
 const LOAD=[.7,.6,.6,.6,.6,.8,1.3,1.5,1.2,1,1,1.1,1.2,1.1,1,1,1.3,2,3,3.4,3.2,3,2.2,1.2];
 const W={sun:{f:1,n:"☀️ Nắng tốt",d:"nắng tốt"},cloud:{f:.5,n:"⛅ Nhiều mây",d:"nhiều mây"},rain:{f:.2,n:"🌧️ Mưa",d:"mưa"}};
 let S={w:"sun",t:36},R=null,timer=null;
@@ -113,7 +116,7 @@ const PEAK=t=>t>=35&&t<45,CW=t=>t<8;
 const hh=t=>String(Math.floor(t/2)).padStart(2,"0")+":"+(t%2?"30":"00");
 const fmt=x=>Math.abs(x).toFixed(1);
 function sim(w,s0){
- const sc=(+$("ldk").value>0?+$("ldk").value:34.6)/34.6,kwp=+$("kwp").value||10,cap=+$("cap").value||20,soc0=Math.min(100,Math.max(0,s0!=null?s0:(+$("soc0").value||0))),f=W[w||S.w].f,res=cap*.2,mx=5;
+ const EF=.95,sc=(+$("ldk").value>0?+$("ldk").value:34.6)/34.6,kwp=+$("kwp").value||10,cap=+$("cap").value||20,soc0=Math.min(100,Math.max(0,s0!=null?s0:(+$("soc0").value||0))),f=W[w||S.w].f,res=cap*.2,mx=5;
  const pvAt=t=>{const m=(t+.5)/2;return m>=6&&m<18?kwp*f*.59*Math.sin(Math.PI*(m-6)/12):0};
  let pvD=0,ld=0,sur=0,need=0;
  for(let t=0;t<48;t++){const p=pvAt(t),l=LOAD[Math.floor(t/2)]*sc;pvD+=p*.5;ld+=l*.5;if(p>l)sur+=(p-l)*.5;if(PEAK(t))need+=l*.5}
@@ -122,10 +125,10 @@ function sim(w,s0){
  const rows=[];let peakGrid=0,cost=0,gridKwh=0;
  for(let t=0;t<48;t++){
   const p=pvAt(t),l=LOAD[Math.floor(t/2)]*sc;let bat=0,grid=0,mode;
-  if(CW(t)&&E<target-1e-6){const c=Math.min(mx,(target-E)/.5);bat=c;grid=l+c;E+=c*.5;mode="gridcharge"}
-  else if(p>=l){const c=Math.max(0,Math.min(p-l,mx,(cap*.95-E)/.5));bat=c;grid=-(p-l-c);E+=c*.5;mode=c>.05?"solarcharge":"solar"}
+  if(CW(t)&&E<target-1e-6){const c=Math.min(mx,(target-E)/.5/EF);bat=c;grid=l+c;E+=c*.5*EF;mode="gridcharge"}
+  else if(p>=l){const c=Math.max(0,Math.min(p-l,mx,(cap*.95-E)/.5/EF));bat=c;grid=-(p-l-c);E+=c*.5*EF;mode=c>.05?"solarcharge":"solar"}
   else{const d=l-p;
-   if(PEAK(t)&&E>res+1e-6){const b=Math.min(d,mx,(E-res)/.5);bat=-b;grid=d-b;E-=b*.5;mode=grid>.05?"peakgrid":"discharge"}
+   if(PEAK(t)&&E>res+1e-6){const b=Math.min(d,mx,(E-res)*EF/.5);bat=-b;grid=d-b;E-=b*.5/EF;mode=grid>.05?"peakgrid":"discharge"}
    else{grid=d;mode=PEAK(t)?"peakgrid":(p>.05?"mix":"grid")}}
   const g=Math.max(0,grid)*.5;gridKwh+=g;if(PEAK(t))peakGrid+=g;
   cost+=g*(PEAK(t)?3000:CW(t)?1100:1800);
@@ -174,7 +177,7 @@ function chart(){
 }
 function panel(){
  const k=(v,l)=>`<div class="k"><b>${v}</b><span>${l}</span></div>`;
- $("dec").innerHTML=k(R.pvD.toFixed(1)+" kWh","Solar dự kiến cả ngày")+k(R.ld.toFixed(1)+" kWh","Điện nhà dùng cả ngày")+k(R.need.toFixed(1)+" kWh","Cần cho cao điểm 17:30–22:30")+k(R.gc.toFixed(1)+" kWh","Sạc lưới đêm (00:00–04:00)")+k(R.peakGrid.toFixed(1)+" kWh","Mua lưới giờ cao điểm")+k(Math.round(R.cost/1000).toLocaleString("vi-VN")+"k đ","Tiền điện lưới ước tính");
+ $("dec").innerHTML=k(R.pvD.toFixed(1)+" kWh","Solar dự kiến cả ngày")+k(R.ld.toFixed(1)+" kWh","Điện nhà dùng cả ngày")+k(R.need.toFixed(1)+" kWh","Cần cho cao điểm 17:30–22:30")+k(R.gc.toFixed(1)+" kWh","Sạc lưới đêm (00:00–04:00)")+k(R.peakGrid.toFixed(1)+" kWh","Mua lưới giờ cao điểm")+k(Math.round(dayCost()/1000).toLocaleString("vi-VN")+"k đ","Tiền điện ngày này (ước tính)");
  $("verdict").textContent=R.gc>.05?`Dự báo ${W[S.w].d}: Solar không đủ nạp pin. EMS sạc thêm ${R.gc.toFixed(1)} kWh từ lưới giờ thấp điểm để đủ điện cho cao điểm.`:`Dự báo ${W[S.w].d}: Solar đủ sạc pin ban ngày. EMS không sạc lưới, tiết kiệm tiền điện.`;
 }
 function run(){R=sim();panel();chart();draw()}
@@ -187,28 +190,30 @@ $("play").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("play").textC
 run();
 const sum=(a,k)=>a.reduce((t,x)=>t+x[k],0);
 let MS=null,V="day",ROWS=[];
-function st(o){let cs=0,cg=0,ds=0;o.rows.forEach(x=>{if(x.bat>0){if(x.mode==="gridcharge")cg+=x.bat*.5;else cs+=x.bat*.5}else ds-=x.bat*.5});return{cs,cg,ds}}
+function st(o){let cs=0,cg=0,ds=0;let ex=0,dr=0;o.rows.forEach(x=>{if(x.bat>0){if(x.mode==="gridcharge")cg+=x.bat*.5;else cs+=x.bat*.5}else ds-=x.bat*.5;if(x.grid<0)ex-=x.grid*.5;dr+=Math.min(x.p,x.l)*.5});return{cs,cg,ds,ex,dr}}
 function build(){
  let z=7;const rnd=()=>(z=z*16807%2147483647)/2147483647;
  const dim=[31,28,31,30,31,30,31,31,30,31,30,31];let s=+$("soc0").value||30;const ms=[];
  for(let m=0;m<12;m++){const wet=m>=4&&m<=9,days=[];
   for(let d=0;d<dim[m];d++){const r=rnd(),w=wet?(r<.3?"sun":r<.65?"cloud":"rain"):(r<.6?"sun":r<.9?"cloud":"rain");
    const o=sim(w,s),x=st(o);s=o.rows[47].soc;
-   days.push({d:d+1,w,ld:o.ld,pv:o.pvD,cs:x.cs,cg:x.cg,ds:x.ds,gr:o.gridKwh,pk:o.peakGrid,cost:o.cost})}
+   days.push({d:d+1,w,ld:o.ld,pv:o.pvD,cs:x.cs,cg:x.cg,ds:x.ds,ex:x.ex,dr:x.dr,gr:o.gridKwh,pk:o.peakGrid,cost:o.cost})}
   ms.push(days)}
  return ms}
 function view(){
  if(!MS)MS=build();
  const m=+$("msel").value,IC={sun:"☀️",cloud:"⛅",rain:"🌧️"};
- const rows=V==="day"?MS[m].map(x=>({...x,l:x.d,ic:IC[x.w]})):MS.map((a,i)=>({l:"T"+(i+1),ic:"",ld:sum(a,"ld"),pv:sum(a,"pv"),cs:sum(a,"cs"),cg:sum(a,"cg"),ds:sum(a,"ds"),gr:sum(a,"gr"),pk:sum(a,"pk"),cost:sum(a,"cost")}));
- ROWS=rows.map(x=>({k:(V==="day"?"ngày ":"")+x.l,ld:+x.ld.toFixed(1),pv:+x.pv.toFixed(1),cs:+x.cs.toFixed(1),cg:+x.cg.toFixed(1),ds:+x.ds.toFixed(1),gr:+x.gr.toFixed(1),pk:+x.pk.toFixed(1),cost:Math.round(x.cost)}));
- const T=k=>sum(rows,k),n=v=>v.toFixed(v>=100?0:1),ck=v=>Math.round(v/1000).toLocaleString("vi-VN");
+ const rows=V==="day"?MS[m].map(x=>({...x,l:x.d,ic:IC[x.w]})):MS.map((a,i)=>({l:"T"+(i+1),ic:"",ld:sum(a,"ld"),pv:sum(a,"pv"),cs:sum(a,"cs"),cg:sum(a,"cg"),ds:sum(a,"ds"),ex:sum(a,"ex"),dr:sum(a,"dr"),gr:sum(a,"gr"),pk:sum(a,"pk"),cost:sum(a,"cost")}));
+ const vat=1+(+$("vat").value||0)/100,bac=$("tf").value==="bac";
+ if(bac){if(V==="day"){let cum=0,prev=0;rows.forEach(x=>{cum+=x.gr;const c=tier(cum)*vat;x.cost=c-prev;prev=c})}else rows.forEach(x=>{x.cost=tier(x.gr)*vat})}
+ ROWS=rows.map(x=>({k:(V==="day"?"ngày ":"")+x.l,ld:+x.ld.toFixed(1),pv:+x.pv.toFixed(1),cs:+x.cs.toFixed(1),cg:+x.cg.toFixed(1),ds:+x.ds.toFixed(1),gr:+x.gr.toFixed(1),pk:+x.pk.toFixed(1),ex:+x.ex.toFixed(1),dr:+x.dr.toFixed(1),cost:Math.round(x.cost)}));
+ const T=k=>sum(rows,k),n=v=>v.toFixed(v>=100?0:1),ck=v=>Math.round(v/1000).toLocaleString("vi-VN");const T0=V==="day"?tier(T("ld"))*vat:rows.reduce((t,x)=>t+tier(x.ld)*vat,0);
  const kk=(v,l)=>`<div class="k"><b>${v}</b><span>${l}</span></div>`;
  $("mw").style.display=V==="day"?"":"none";
- $("kp").innerHTML=kk(n(T("ld"))+" kWh","Điện tiêu thụ")+kk(n(T("pv"))+" kWh","Solar phát")+kk(n(T("cs")+T("cg"))+" kWh","Sạc pin (từ lưới "+n(T("cg"))+")")+kk(n(T("ds"))+" kWh","Xả pin")+kk(n(T("gr"))+" kWh","Mua điện lưới")+kk(ck(T("cost"))+"k đ","Tiền điện lưới");
- let h=`<tr><th>${V==="day"?"Ngày":"Tháng"}</th><th>Tiêu thụ</th><th>Solar</th><th>Sạc Solar</th><th>Sạc lưới</th><th>Xả pin</th><th>Mua lưới</th><th>Cao điểm</th><th>Tiền điện</th></tr>`;
- rows.forEach(x=>h+=`<tr><td>${x.l} ${x.ic}</td><td>${n(x.ld)}</td><td>${n(x.pv)}</td><td>${n(x.cs)}</td><td>${n(x.cg)}</td><td>${n(x.ds)}</td><td>${n(x.gr)}</td><td>${n(x.pk)}</td><td>${ck(x.cost)}k</td></tr>`);
- h+=`<tr><th>Tổng</th>${["ld","pv","cs","cg","ds","gr","pk"].map(k=>`<th>${n(T(k))}</th>`).join("")}<th>${ck(T("cost"))}k</th></tr>`;
+ $("kp").innerHTML=kk(n(T("ld"))+" kWh","Điện tiêu thụ")+kk(n(T("pv"))+" kWh","Solar phát")+kk(n(T("dr"))+" kWh","Solar cấp thẳng cho nhà")+kk(n(T("ex"))+" kWh","Solar dư xuất lưới")+kk(n(T("cs")+T("cg"))+" kWh","Sạc pin (từ lưới "+n(T("cg"))+")")+kk(n(T("ds"))+" kWh","Xả pin")+kk(n(T("gr"))+" kWh","Mua điện lưới")+kk(ck(T("cost"))+"k đ",bac?"Tiền điện EVN phải trả (gồm VAT "+(vat*100-100).toFixed(0)+"%)":"Tiền điện lưới (giá giả định)")+(bac?kk(ck(T0)+"k đ","Nếu không có Solar/pin")+kk(ck(T0-T("cost"))+"k đ","Tiết kiệm"):"");
+ let h=`<tr><th>${V==="day"?"Ngày":"Tháng"}</th><th>Tiêu thụ</th><th>Solar</th><th>Solar cấp thẳng</th><th>Xuất lưới</th><th>Sạc Solar</th><th>Sạc lưới</th><th>Xả pin</th><th>Mua lưới</th><th>Cao điểm</th><th>Tiền điện</th></tr>`;
+ rows.forEach(x=>h+=`<tr><td>${x.l} ${x.ic}</td><td>${n(x.ld)}</td><td>${n(x.pv)}</td><td>${n(x.dr)}</td><td>${n(x.ex)}</td><td>${n(x.cs)}</td><td>${n(x.cg)}</td><td>${n(x.ds)}</td><td>${n(x.gr)}</td><td>${n(x.pk)}</td><td>${ck(x.cost)}k</td></tr>`);
+ h+=`<tr><th>Tổng</th>${["ld","pv","dr","ex","cs","cg","ds","gr","pk"].map(k=>`<th>${n(T(k))}</th>`).join("")}<th>${ck(T("cost"))}k</th></tr>`;
  $("tb").innerHTML=h;
  const mx=Math.max(1,...rows.map(x=>Math.max(x.ld,x.cs+x.cg,x.ds)))*1.1,gw=700/rows.length,bw=Math.min(14,gw/3.4);
  let c=`<line x1="40" y1="190" x2="740" y2="190" stroke="var(--ln)"/><text x="4" y="24" font-size="11" fill="var(--mu)">${n(mx)} kWh</text>`;
@@ -218,7 +223,7 @@ function view(){
  $("bc").innerHTML=c;
 }
 const ms=$("msel");for(let i=0;i<12;i++){const o=document.createElement("option");o.value=i;o.textContent="T"+(i+1);ms.appendChild(o)}ms.value=10;
-ms.onchange=view;
+ms.onchange=view;$("tf").onchange=()=>{run();view()};$("vat").oninput=()=>{run();view()};
 $("vd").onclick=()=>{V="day";$("vd").classList.add("on");$("vm").classList.remove("on");view()};
 $("vm").onclick=()=>{V="month";$("vm").classList.add("on");$("vd").classList.remove("on");view()};
 ["kwp","cap","soc0","ldk"].forEach(i=>$(i).addEventListener("input",()=>{MS=null;view()}));
@@ -230,7 +235,7 @@ async function ask(q){
   const sample=await claude.use("sample");
   if(!sample){out.textContent="Chế độ xem này chưa bật được trợ lý Claude.";return}
   const data=JSON.stringify({cauHinh:{kWp:R.kwp,pinKWh:R.cap},homNay:{thoiTiet:W[S.w].d,solarKWh:+R.pvD.toFixed(1),tieuThuKWh:+R.ld.toFixed(1),sacLuoiDemKWh:+R.gc.toFixed(1),muaLuoiCaoDiemKWh:+R.peakGrid.toFixed(1)},kyDangXem:{loai:V==="day"?"theo ngày, tháng "+(+$("msel").value+1):"theo tháng, 12 tháng",dong:ROWS}});
-  const p="Bạn là trợ lý theo dõi hệ thống Hybrid Inverter và pin lưu trữ chạy EMS theo dự báo thời tiết (sạc lưới giờ thấp điểm khi hôm sau ít nắng, xả pin 17:30–22:30). Dữ liệu dưới đây là MÔ PHỎNG, đơn vị kWh: ld là tiêu thụ, pv là Solar phát, cs là sạc từ Solar, cg là sạc từ lưới, ds là xả pin, gr là mua lưới, pk là mua lưới giờ cao điểm, cost là tiền điện lưới (đồng). Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu cho chủ nhà, gạch đầu dòng, chỉ dùng số có trong dữ liệu, nêu điểm bất thường và gợi ý chỉnh dung lượng pin hoặc luật sạc nếu cần.\n\nDữ liệu: "+data+"\n\nYêu cầu: "+q;
+  const p="Bạn là trợ lý theo dõi hệ thống Hybrid Inverter và pin lưu trữ chạy EMS theo dự báo thời tiết (sạc lưới giờ thấp điểm khi hôm sau ít nắng, xả pin 17:30–22:30). Dữ liệu dưới đây là MÔ PHỎNG, đơn vị kWh: ld là tiêu thụ, pv là Solar phát, cs là sạc từ Solar, cg là sạc từ lưới, ds là xả pin, gr là mua lưới, pk là mua lưới giờ cao điểm, ex là Solar dư xuất lên lưới, dr là Solar cấp thẳng cho nhà, pin tính hiệu suất 95% mỗi chiều sạc/xả, cost là tiền điện phải trả (đồng, "+($("tf").value==="bac"?"theo biểu giá sinh hoạt 5 bậc EVN từ 1/11/2026, đã gồm VAT":"theo giá theo giờ giả định")+"). Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu cho chủ nhà, gạch đầu dòng, chỉ dùng số có trong dữ liệu, nêu điểm bất thường và gợi ý chỉnh dung lượng pin hoặc luật sạc nếu cần.\n\nDữ liệu: "+data+"\n\nYêu cầu: "+q;
   await sample(p,{cache:false,onText:({text})=>{out.textContent=text}});
  }catch(e){out.textContent=e&&e.code==="not_granted"?"Bạn chưa cho phép trợ lý Claude. Bấm lại và chọn đồng ý.":e&&e.code==="rate_limited"?"Gọi quá nhiều lần, thử lại sau ít phút.":"Chưa phân tích được lúc này. Thử lại sau."}
 }
