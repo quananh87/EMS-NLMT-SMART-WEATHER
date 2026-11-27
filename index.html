@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EMS Hybrid thông minh theo thời tiết</title>
+<style>
+:root{--bg:#faf7f0;--card:#fff;--tx:#1a1a1a;--mu:#6b6556;--gold:#b8860b;--ln:#e6dfcc;--pv:#e0a800;--gr:#2f80ed;--bt:#1fa971;--hm:#8a8372;--bad:#d64545;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111;--card:#1b1b1b;--tx:#f3efe4;--mu:#a59f8e;--gold:#f5b800;--ln:#333;--pv:#f5b800;--gr:#4aa3ff;--bt:#3ecf8e;--hm:#c9c2ae}}
+:root[data-theme="dark"]{--bg:#111;--card:#1b1b1b;--tx:#f3efe4;--mu:#a59f8e;--gold:#f5b800;--ln:#333;--pv:#f5b800;--gr:#4aa3ff;--bt:#3ecf8e;--hm:#c9c2ae}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:960px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:0 0 2px;color:var(--gold)}h2{font-size:16px;margin:0 0 10px}
+.sub{color:var(--mu);font-size:13px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button.wb{flex:1;min-width:110px;padding:10px;border-radius:10px;border:2px solid var(--ln);background:var(--card);color:var(--tx);font:inherit;cursor:pointer}
+button.wb.on{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 15%,var(--card));font-weight:600}
+label{font-size:13px;color:var(--mu);display:flex;flex-direction:column;gap:2px}
+input[type=number]{width:96px;padding:6px;border-radius:8px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);font:inherit}
+.dec{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.k{background:var(--bg);border-radius:10px;padding:10px}.k b{display:block;font-size:20px}.k span{font-size:12px;color:var(--mu)}
+.verdict{margin-top:12px;padding:12px;border-radius:10px;font-weight:600;border-left:5px solid var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--card))}
+svg{width:100%;height:auto;display:block}
+.flow{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:10 9;animation:d .7s linear infinite}
+.idle{fill:none;stroke:var(--ln);stroke-width:3;stroke-dasharray:4 8}
+@keyframes d{to{stroke-dashoffset:-19}}
+.nd{fill:var(--card);stroke:var(--ln);stroke-width:2}.nt{fill:var(--tx);font-size:15px;font-weight:600;text-anchor:middle}.ns{fill:var(--mu);font-size:13px;text-anchor:middle}
+.fl{font-size:14px;font-weight:700;text-anchor:middle}
+.status{padding:12px;border-radius:10px;margin-top:8px;font-size:15px;font-weight:600;background:var(--bg);border:1px solid var(--ln)}
+input[type=range]{flex:1;min-width:160px;accent-color:var(--gold)}
+.play{padding:8px 16px;border-radius:10px;border:0;background:var(--gold);color:#111;font-weight:700;cursor:pointer}
+.tm{font-weight:700;min-width:54px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--ln)}th{color:var(--mu);font-weight:600}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--gold) 20%,var(--card));white-space:nowrap}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;font-size:13px}.steps div{background:var(--bg);border-radius:10px;padding:10px}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mu);margin-top:6px}.leg i{display:inline-block;width:12px;height:4px;margin-right:4px;vertical-align:middle}
+.note{font-size:12px;color:var(--mu)}
+.tw{overflow-x:auto}
+select{padding:6px;border-radius:8px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);font:inherit}.aiq{flex:1;min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);font:inherit}</style></head><body><div class="w">
+<h1>⚡ EMS Hybrid thông minh theo thời tiết</h1>
+<div class="sub">Bản demo: dữ liệu inverter và dự báo là mô phỏng. Chọn thời tiết bên dưới để xem hệ thống tự quyết định.</div>
+
+<div class="card"><h2>1. Dự báo thời tiết (hệ thống nhận tối hôm trước)</h2>
+<div class="row" id="wbs"></div>
+<div class="row" style="margin-top:10px">
+<label>Công suất pin Solar (kWp)<input type="number" id="kwp" value="10" min="1" max="100"></label>
+<label>Dung lượng pin (kWh)<input type="number" id="cap" value="20" min="5" max="200"></label>
+<label>Pin còn lại lúc 0h (%)<input type="number" id="soc0" value="30" min="0" max="100"></label></div>
+<div class="dec" id="dec"></div><div class="verdict" id="verdict"></div></div>
+
+<div class="card"><h2>2. Sơ đồ dòng điện trong ngày</h2>
+<svg viewBox="0 0 760 410" id="dg" role="img" aria-label="Sơ đồ dòng năng lượng">
+<path id="lpv" class="idle" d=""/><path id="lgr" class="idle" d=""/><path id="lbt" class="idle" d=""/><path id="lhm" class="idle" d="">
+</path>
+<g><rect class="nd" x="320" y="18" width="120" height="64" rx="12"/><text class="nt" x="380" y="45">☀️ Solar</text><text class="ns" id="vpv" x="380" y="68"></text></g>
+<g><rect class="nd" x="30" y="168" width="120" height="64" rx="12"/><text class="nt" x="90" y="195">🏭 Điện lưới</text><text class="ns" id="vgr" x="90" y="218"></text></g>
+<g><rect class="nd" x="610" y="168" width="120" height="64" rx="12"/><text class="nt" x="670" y="195">🏠 Ngôi nhà</text><text class="ns" id="vhm" x="670" y="218"></text></g>
+<g><rect class="nd" x="300" y="316" width="160" height="80" rx="12"/><text class="nt" x="380" y="342" id="vbt">🔋 Pin</text><rect x="320" y="356" width="120" height="14" rx="7" fill="none" stroke="var(--ln)" stroke-width="2"/><rect id="bar" x="322" y="358" width="0" height="10" rx="5" fill="var(--bt)"/><text class="ns" id="vbt2" x="380" y="388"></text></g>
+<g><rect x="320" y="168" width="120" height="64" rx="12" fill="var(--gold)"/><text x="380" y="195" text-anchor="middle" font-size="15" font-weight="700" fill="#111">Inverter</text><text x="380" y="216" text-anchor="middle" font-size="12" fill="#111">Hybrid + EMS</text></g>
+<text class="fl" id="tpv" x="415" y="128" fill="var(--pv)"></text><text class="fl" id="tgr" x="235" y="190" fill="var(--gr)"></text><text class="fl" id="thm" x="525" y="190" fill="var(--hm)"></text><text class="fl" id="tbt" x="420" y="285" fill="var(--bt)"></text>
+</svg>
+<div class="row"><button class="play" id="play">▶ Chạy 24h</button><span class="tm" id="tm">00:00</span><input type="range" id="sl" min="0" max="47" value="36"></div>
+<div class="status" id="st"></div></div>
+
+<div class="card"><h2>3. Biểu đồ 24 giờ</h2>
+<svg viewBox="0 0 760 230" id="ch" style="cursor:pointer"></svg>
+<div class="leg"><span><i style="background:var(--pv)"></i>Solar (kW)</span><span><i style="background:var(--tx)"></i>Tải nhà (kW)</span><span><i style="background:var(--bt)"></i>Mức pin (%)</span><span>🟦 Sạc lưới thấp điểm</span><span>🟧 Cao điểm 17:30–22:30</span></div></div>
+
+<div class="card"><h2>4. Cách EMS hoạt động</h2><div class="steps">
+<div><b>🌤 Ban ngày</b><br>Lấy dự báo bức xạ, mây, mưa và ước tính sản lượng Solar ngày mai.</div>
+<div><b>🌙 Ban đêm</b><br>Ngày mai ít nắng thì sạc pin từ lưới giờ thấp điểm, đúng lượng còn thiếu.</div>
+<div><b>🔋 17:30–22:30</b><br>Pin ưu tiên cấp điện cho nhà, hạn chế mua điện lưới giá cao.</div>
+<div><b>☀️ Ngày nắng tốt</b><br>Không sạc lưới dư thừa, để Solar sạc pin ban ngày.</div></div></div>
+
+<div class="card"><h2>5. Các hãng hỗ trợ (khung adapter)</h2><div class="tw"><table>
+<tr><th>Hãng</th><th>Đọc dữ liệu</th><th>Điều khiển</th><th>Trạng thái</th></tr>
+<tr><td>1. Deye</td><td>Solarman API</td><td>Modbus / MQTT</td><td><span class="tag">Làm trước</span></td></tr>
+<tr><td>2. GoodWe</td><td>SEMS Portal API</td><td>Modbus</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
+<tr><td>3. Sungrow</td><td>iSolarCloud API</td><td>Modbus TCP</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
+<tr><td>4. Luxpower</td><td>LuxPowerTek (cloud)</td><td>Dongle / Modbus</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
+<tr><td>5. Solis</td><td>SolisCloud API</td><td>Modbus</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
+<tr><td>6. Solax</td><td>SolaxCloud API</td><td>Modbus / Pocket WiFi</td><td><span class="tag">Chờ tài khoản API</span></td></tr>
+<tr><td>7. Growatt</td><td>Growatt OpenAPI</td><td>Modbus</td><td><span class="tag">Chờ tài khoản API</span></td></tr></table></div>
+<p class="note">Mọi hãng quy về một chuẩn dữ liệu chung: công suất PV, tải, mức pin, công suất lưới, chế độ sạc/xả. Giá điện trong demo là giả định (thấp điểm 1.100đ, bình thường 1.800đ, cao điểm 3.000đ/kWh).</p></div>
+<div class="card"><h2>6. Liên kết inverter</h2>
+<div class="row"><label>Hãng<select id="lb"></select></label><label style="flex:1;min-width:180px">Tên khách / công trình<input type="text" id="ln" class="aiq" placeholder="VD: Nhà anh Tân"></label></div>
+<div class="row" id="lf" style="margin-top:8px"></div>
+<div class="row" style="margin-top:8px"><label>Pin Solar (kWp)<input type="number" id="lk" value="10"></label><label>Pin lưu trữ (kWh)<input type="number" id="lc" value="20"></label><label>Chế độ<select id="lm"><option>Chỉ đọc (theo dõi)</option><option>Đọc + điều khiển sạc/xả</option></select></label></div>
+<div class="row" style="margin-top:8px"><label style="flex:1;min-width:200px">Địa chỉ gateway (tuỳ chọn)<input type="text" id="lg" class="aiq" placeholder="http://192.168.1.50:8080"></label><button class="play" id="lbtn">🔗 Liên kết</button></div>
+<div class="status" id="lmsg" style="font-weight:400">Chọn hãng, điền thông tin rồi bấm Liên kết.</div>
+<div id="ld" style="margin-top:8px"></div>
+<p class="note">Bản demo: thông tin đăng nhập chỉ nằm trong ô nhập, không được lưu và không gửi đi đâu. Đừng nhập mật khẩu thật vào bản demo. Khi có gateway, nút Liên kết sẽ gọi gateway để kiểm tra kết nối thật.</p></div>
+<div class="card"><h2>7. Thống kê điện năng: tiêu thụ, sạc, xả</h2>
+<div class="row"><button class="wb on" id="vd">Theo ngày</button><button class="wb" id="vm">Theo tháng</button><label style="flex-direction:row;align-items:center;gap:6px" id="mw">Tháng <select id="msel"></select></label></div>
+<div class="dec" id="kp"></div>
+<svg viewBox="0 0 760 220" id="bc" style="margin-top:10px"></svg>
+<div class="leg"><span><i style="background:var(--hm)"></i>Tiêu thụ</span><span><i style="background:var(--bt)"></i>Sạc pin</span><span><i style="background:var(--pv)"></i>Xả pin</span></div>
+<div class="tw" style="max-height:340px;overflow-y:auto;margin-top:8px"><table id="tb"></table></div>
+<p class="note">Đơn vị kWh. Dữ liệu mô phỏng 12 tháng theo mùa mưa/khô. Khi nối API thật sẽ thay bằng số liệu đọc từ inverter.</p></div>
+<div class="card"><h2>8. Trợ lý Claude theo dõi hệ thống</h2>
+<div class="row" id="chips"></div>
+<div class="row" style="margin-top:8px"><input type="text" id="q" class="aiq" placeholder="Hỏi về số liệu đang xem…"><button class="play" id="ask">Hỏi Claude</button></div>
+<div class="status" id="aiout" style="white-space:pre-wrap;font-weight:400">Chọn câu hỏi gợi ý hoặc tự nhập. Claude sẽ đọc số liệu đang hiển thị ở mục 7 để trả lời.</div></div>
+</div>
+<script>
+const $=i=>document.getElementById(i);
+const LOAD=[.7,.6,.6,.6,.6,.8,1.3,1.5,1.2,1,1,1.1,1.2,1.1,1,1,1.3,2,3,3.4,3.2,3,2.2,1.2];
+const W={sun:{f:1,n:"☀️ Nắng tốt",d:"nắng tốt"},cloud:{f:.5,n:"⛅ Nhiều mây",d:"nhiều mây"},rain:{f:.2,n:"🌧️ Mưa",d:"mưa"}};
+let S={w:"sun",t:36},R=null,timer=null;
+const PEAK=t=>t>=35&&t<45,CW=t=>t<8;
+const hh=t=>String(Math.floor(t/2)).padStart(2,"0")+":"+(t%2?"30":"00");
+const fmt=x=>Math.abs(x).toFixed(1);
+function sim(w,s0){
+ const kwp=+$("kwp").value||10,cap=+$("cap").value||20,soc0=Math.min(100,Math.max(0,s0!=null?s0:(+$("soc0").value||0))),f=W[w||S.w].f,res=cap*.2,mx=5;
+ const pvAt=t=>{const m=(t+.5)/2;return m>=6&&m<18?kwp*f*.59*Math.sin(Math.PI*(m-6)/12):0};
+ let pvD=0,ld=0,sur=0,need=0;
+ for(let t=0;t<48;t++){const p=pvAt(t),l=LOAD[Math.floor(t/2)];pvD+=p*.5;ld+=l*.5;if(p>l)sur+=(p-l)*.5;if(PEAK(t))need+=l*.5}
+ let E=cap*soc0/100;const E0=E;
+ const target=Math.min(cap*.95,Math.max(res,res+need-sur*.9)),gc=Math.max(0,target-E0);
+ const rows=[];let peakGrid=0,cost=0,gridKwh=0;
+ for(let t=0;t<48;t++){
+  const p=pvAt(t),l=LOAD[Math.floor(t/2)];let bat=0,grid=0,mode;
+  if(CW(t)&&E<target-1e-6){const c=Math.min(mx,(target-E)/.5);bat=c;grid=l+c;E+=c*.5;mode="gridcharge"}
+  else if(p>=l){const c=Math.max(0,Math.min(p-l,mx,(cap*.95-E)/.5));bat=c;grid=-(p-l-c);E+=c*.5;mode=c>.05?"solarcharge":"solar"}
+  else{const d=l-p;
+   if(PEAK(t)&&E>res+1e-6){const b=Math.min(d,mx,(E-res)/.5);bat=-b;grid=d-b;E-=b*.5;mode=grid>.05?"peakgrid":"discharge"}
+   else{grid=d;mode=PEAK(t)?"peakgrid":(p>.05?"mix":"grid")}}
+  const g=Math.max(0,grid)*.5;gridKwh+=g;if(PEAK(t))peakGrid+=g;
+  cost+=g*(PEAK(t)?3000:CW(t)?1100:1800);
+  rows.push({p,l,bat,grid,soc:E/cap*100,mode});
+ }
+ return{rows,pvD,ld,sur,need,target,gc,peakGrid,cost,gridKwh,cap,E0,kwp,soc0};
+}
+const MSG={gridcharge:["🌙 Đang sạc pin bằng điện lưới giờ thấp điểm, vì dự báo hôm nay ít nắng.","var(--gr)"],
+solarcharge:["☀️ Solar cấp điện cho nhà và sạc pin. Không phải mua điện lưới.","var(--pv)"],
+solar:["☀️ Solar đủ cấp cho cả nhà, pin đã đầy. Phần dư xuất lên lưới.","var(--pv)"],
+discharge:["🔋 Giờ cao điểm: pin cấp điện cho nhà, không mua điện lưới giá cao.","var(--bt)"],
+peakgrid:["⚠️ Giờ cao điểm: pin đã xuống mức dự phòng, nhà dùng điện lưới.","var(--bad)"],
+mix:["⛅ Solar và lưới cùng cấp cho nhà. Pin được giữ lại cho giờ cao điểm.","var(--pv)"],
+grid:["🏭 Điện lưới cấp cho nhà. Pin được giữ lại cho giờ cao điểm.","var(--gr)"]};
+function seg(id,a,b,p,col){const e=$(id);const flowIn=p>0.05;e.setAttribute("d",flowIn?`M${a} L${b}`:`M${b} L${a}`);
+ e.setAttribute("class",Math.abs(p)>.05?"flow":"idle");e.style.stroke=Math.abs(p)>.05?col:""}
+function draw(){
+ const r=R.rows[S.t];
+ seg("lpv","380,82","380,168",r.p,"var(--pv)");
+ seg("lgr","150,200","320,200",r.grid,"var(--gr)");
+ seg("lhm","440,200","610,200",r.l,"var(--hm)");
+ seg("lbt","380,232","380,316",-r.bat,"var(--bt)");
+ $("vpv").textContent=fmt(r.p)+" kW";$("vhm").textContent=fmt(r.l)+" kW";
+ $("vgr").textContent=Math.abs(r.grid)<.05?"0 kW":(r.grid>0?"Mua ":"Xuất ")+fmt(r.grid)+" kW";
+ $("tpv").textContent=r.p>.05?fmt(r.p)+" kW":"";
+ $("tgr").textContent=Math.abs(r.grid)>.05?fmt(r.grid)+" kW":"";
+ $("thm").textContent=fmt(r.l)+" kW";
+ $("tbt").textContent=Math.abs(r.bat)>.05?(r.bat>0?"Sạc ":"Xả ")+fmt(r.bat)+" kW":"";
+ $("vbt").textContent="🔋 Pin "+Math.round(r.soc)+"%";
+ $("bar").setAttribute("width",Math.max(0,116*r.soc/100));
+ $("vbt2").textContent=(r.bat>.05?"Đang sạc":r.bat<-.05?"Đang xả":"Nghỉ")+" · "+(R.cap*r.soc/100).toFixed(1)+" kWh";
+ const m=MSG[r.mode];$("st").textContent=m[0];$("st").style.borderColor=m[1];
+ $("tm").textContent=hh(S.t);$("sl").value=S.t;
+ const c=$("cur");if(c){const x=40+S.t/48*700;c.setAttribute("x1",x);c.setAttribute("x2",x)}
+}
+function chart(){
+ const rows=R.rows,mx=Math.max(1,...rows.map(r=>Math.max(r.p,r.l)))*1.15,X=t=>40+t/48*700,Y=v=>190-v/mx*170,Ys=s=>190-s/100*170;
+ let s=`<rect x="${X(0)}" y="20" width="${X(8)-X(0)}" height="170" fill="var(--gr)" opacity=".15"/><rect x="${X(35)}" y="20" width="${X(45)-X(35)}" height="170" fill="#ff8a3d" opacity=".18"/>`;
+ for(let h=0;h<=24;h+=4)s+=`<text x="${40+h/24*700}" y="210" text-anchor="middle" font-size="12" fill="var(--mu)">${h}h</text>`;
+ s+=`<line x1="40" y1="190" x2="740" y2="190" stroke="var(--ln)"/>`;
+ const pts=f=>rows.map((r,t)=>X(t+.5).toFixed(0)+","+f(r).toFixed(0)).join(" ");
+ s+=`<polygon points="40,190 ${pts(r=>Y(r.p))} 740,190" fill="var(--pv)" opacity=".35"/><polyline points="${pts(r=>Y(r.p))}" fill="none" stroke="var(--pv)" stroke-width="2.5"/>`;
+ s+=`<polyline points="${pts(r=>Y(r.l))}" fill="none" stroke="var(--tx)" stroke-width="2"/><polyline points="${pts(r=>Ys(r.soc))}" fill="none" stroke="var(--bt)" stroke-width="3" stroke-dasharray="6 4"/>`;
+ s+=`<line id="cur" x1="0" x2="0" y1="14" y2="190" stroke="var(--gold)" stroke-width="2"/>`;
+ $("ch").innerHTML=s;
+}
+function panel(){
+ const k=(v,l)=>`<div class="k"><b>${v}</b><span>${l}</span></div>`;
+ $("dec").innerHTML=k(R.pvD.toFixed(1)+" kWh","Solar dự kiến cả ngày")+k(R.ld.toFixed(1)+" kWh","Điện nhà dùng cả ngày")+k(R.need.toFixed(1)+" kWh","Cần cho cao điểm 17:30–22:30")+k(R.gc.toFixed(1)+" kWh","Sạc lưới đêm (00:00–04:00)")+k(R.peakGrid.toFixed(1)+" kWh","Mua lưới giờ cao điểm")+k(Math.round(R.cost/1000).toLocaleString("vi-VN")+"k đ","Tiền điện lưới ước tính");
+ $("verdict").textContent=R.gc>.05?`Dự báo ${W[S.w].d}: Solar không đủ nạp pin. EMS sạc thêm ${R.gc.toFixed(1)} kWh từ lưới giờ thấp điểm để đủ điện cho cao điểm.`:`Dự báo ${W[S.w].d}: Solar đủ sạc pin ban ngày. EMS không sạc lưới, tiết kiệm tiền điện.`;
+}
+function run(){R=sim();panel();chart();draw()}
+const wb=$("wbs");for(const k in W){const b=document.createElement("button");b.className="wb"+(k===S.w?" on":"");b.textContent=W[k].n;b.onclick=()=>{S.w=k;[...wb.children].forEach(x=>x.classList.remove("on"));b.classList.add("on");run()};wb.appendChild(b)}
+["kwp","cap","soc0"].forEach(i=>$(i).oninput=run);
+$("sl").oninput=e=>{S.t=+e.target.value;draw()};
+$("ch").onclick=e=>{const b=$("ch").getBoundingClientRect();const x=(e.clientX-b.left)/b.width*760;S.t=Math.max(0,Math.min(47,Math.floor((x-40)/700*48)));draw()};
+$("play").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("play").textContent="▶ Chạy 24h";return}
+ $("play").textContent="⏸ Dừng";if(S.t>=47)S.t=0;timer=setInterval(()=>{S.t++;if(S.t>=47){clearInterval(timer);timer=null;$("play").textContent="▶ Chạy 24h"}draw()},250)};
+run();
+const sum=(a,k)=>a.reduce((t,x)=>t+x[k],0);
+let MS=null,V="day",ROWS=[];
+function st(o){let cs=0,cg=0,ds=0;o.rows.forEach(x=>{if(x.bat>0){if(x.mode==="gridcharge")cg+=x.bat*.5;else cs+=x.bat*.5}else ds-=x.bat*.5});return{cs,cg,ds}}
+function build(){
+ let z=7;const rnd=()=>(z=z*16807%2147483647)/2147483647;
+ const dim=[31,28,31,30,31,30,31,31,30,31,30,31];let s=+$("soc0").value||30;const ms=[];
+ for(let m=0;m<12;m++){const wet=m>=4&&m<=9,days=[];
+  for(let d=0;d<dim[m];d++){const r=rnd(),w=wet?(r<.3?"sun":r<.65?"cloud":"rain"):(r<.6?"sun":r<.9?"cloud":"rain");
+   const o=sim(w,s),x=st(o);s=o.rows[47].soc;
+   days.push({d:d+1,w,ld:o.ld,pv:o.pvD,cs:x.cs,cg:x.cg,ds:x.ds,gr:o.gridKwh,pk:o.peakGrid,cost:o.cost})}
+  ms.push(days)}
+ return ms}
+function view(){
+ if(!MS)MS=build();
+ const m=+$("msel").value,IC={sun:"☀️",cloud:"⛅",rain:"🌧️"};
+ const rows=V==="day"?MS[m].map(x=>({...x,l:x.d,ic:IC[x.w]})):MS.map((a,i)=>({l:"T"+(i+1),ic:"",ld:sum(a,"ld"),pv:sum(a,"pv"),cs:sum(a,"cs"),cg:sum(a,"cg"),ds:sum(a,"ds"),gr:sum(a,"gr"),pk:sum(a,"pk"),cost:sum(a,"cost")}));
+ ROWS=rows.map(x=>({k:(V==="day"?"ngày ":"")+x.l,ld:+x.ld.toFixed(1),pv:+x.pv.toFixed(1),cs:+x.cs.toFixed(1),cg:+x.cg.toFixed(1),ds:+x.ds.toFixed(1),gr:+x.gr.toFixed(1),pk:+x.pk.toFixed(1),cost:Math.round(x.cost)}));
+ const T=k=>sum(rows,k),n=v=>v.toFixed(v>=100?0:1),ck=v=>Math.round(v/1000).toLocaleString("vi-VN");
+ const kk=(v,l)=>`<div class="k"><b>${v}</b><span>${l}</span></div>`;
+ $("mw").style.display=V==="day"?"":"none";
+ $("kp").innerHTML=kk(n(T("ld"))+" kWh","Điện tiêu thụ")+kk(n(T("pv"))+" kWh","Solar phát")+kk(n(T("cs")+T("cg"))+" kWh","Sạc pin (từ lưới "+n(T("cg"))+")")+kk(n(T("ds"))+" kWh","Xả pin")+kk(n(T("gr"))+" kWh","Mua điện lưới")+kk(ck(T("cost"))+"k đ","Tiền điện lưới");
+ let h=`<tr><th>${V==="day"?"Ngày":"Tháng"}</th><th>Tiêu thụ</th><th>Solar</th><th>Sạc Solar</th><th>Sạc lưới</th><th>Xả pin</th><th>Mua lưới</th><th>Cao điểm</th><th>Tiền điện</th></tr>`;
+ rows.forEach(x=>h+=`<tr><td>${x.l} ${x.ic}</td><td>${n(x.ld)}</td><td>${n(x.pv)}</td><td>${n(x.cs)}</td><td>${n(x.cg)}</td><td>${n(x.ds)}</td><td>${n(x.gr)}</td><td>${n(x.pk)}</td><td>${ck(x.cost)}k</td></tr>`);
+ h+=`<tr><th>Tổng</th>${["ld","pv","cs","cg","ds","gr","pk"].map(k=>`<th>${n(T(k))}</th>`).join("")}<th>${ck(T("cost"))}k</th></tr>`;
+ $("tb").innerHTML=h;
+ const mx=Math.max(1,...rows.map(x=>Math.max(x.ld,x.cs+x.cg,x.ds)))*1.1,gw=700/rows.length,bw=Math.min(14,gw/3.4);
+ let c=`<line x1="40" y1="190" x2="740" y2="190" stroke="var(--ln)"/><text x="4" y="24" font-size="11" fill="var(--mu)">${n(mx)} kWh</text>`;
+ rows.forEach((x,i)=>{const gx=40+i*gw+gw/2;
+  [[x.ld,"var(--hm)"],[x.cs+x.cg,"var(--bt)"],[x.ds,"var(--pv)"]].forEach(([v,col],j)=>{const ht=v/mx*165;c+=`<rect x="${(gx+(j-1.5)*bw).toFixed(1)}" y="${(190-ht).toFixed(1)}" width="${(bw-1).toFixed(1)}" height="${ht.toFixed(1)}" fill="${col}"/>`});
+  if(rows.length<13||i%3===0)c+=`<text x="${gx.toFixed(0)}" y="207" text-anchor="middle" font-size="11" fill="var(--mu)">${x.l}</text>`});
+ $("bc").innerHTML=c;
+}
+const ms=$("msel");for(let i=0;i<12;i++){const o=document.createElement("option");o.value=i;o.textContent="T"+(i+1);ms.appendChild(o)}ms.value=10;
+ms.onchange=view;
+$("vd").onclick=()=>{V="day";$("vd").classList.add("on");$("vm").classList.remove("on");view()};
+$("vm").onclick=()=>{V="month";$("vm").classList.add("on");$("vd").classList.remove("on");view()};
+["kwp","cap","soc0"].forEach(i=>$(i).addEventListener("input",()=>{MS=null;view()}));
+async function ask(q){
+ const out=$("aiout");
+ if(!(window.claude&&claude.use)){out.textContent="Trợ lý Claude chỉ chạy khi mở trang này trong Claude.";return}
+ out.textContent="Đang phân tích…";
+ try{
+  const sample=await claude.use("sample");
+  if(!sample){out.textContent="Chế độ xem này chưa bật được trợ lý Claude.";return}
+  const data=JSON.stringify({cauHinh:{kWp:R.kwp,pinKWh:R.cap},homNay:{thoiTiet:W[S.w].d,solarKWh:+R.pvD.toFixed(1),tieuThuKWh:+R.ld.toFixed(1),sacLuoiDemKWh:+R.gc.toFixed(1),muaLuoiCaoDiemKWh:+R.peakGrid.toFixed(1)},kyDangXem:{loai:V==="day"?"theo ngày, tháng "+(+$("msel").value+1):"theo tháng, 12 tháng",dong:ROWS}});
+  const p="Bạn là trợ lý theo dõi hệ thống Hybrid Inverter và pin lưu trữ chạy EMS theo dự báo thời tiết (sạc lưới giờ thấp điểm khi hôm sau ít nắng, xả pin 17:30–22:30). Dữ liệu dưới đây là MÔ PHỎNG, đơn vị kWh: ld là tiêu thụ, pv là Solar phát, cs là sạc từ Solar, cg là sạc từ lưới, ds là xả pin, gr là mua lưới, pk là mua lưới giờ cao điểm, cost là tiền điện lưới (đồng). Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu cho chủ nhà, gạch đầu dòng, chỉ dùng số có trong dữ liệu, nêu điểm bất thường và gợi ý chỉnh dung lượng pin hoặc luật sạc nếu cần.\n\nDữ liệu: "+data+"\n\nYêu cầu: "+q;
+  await sample(p,{cache:false,onText:({text})=>{out.textContent=text}});
+ }catch(e){out.textContent=e&&e.code==="not_granted"?"Bạn chưa cho phép trợ lý Claude. Bấm lại và chọn đồng ý.":e&&e.code==="rate_limited"?"Gọi quá nhiều lần, thử lại sau ít phút.":"Chưa phân tích được lúc này. Thử lại sau."}
+}
+["Tháng này EMS có hiệu quả không?","Vì sao vẫn mua lưới giờ cao điểm?","Pin có đủ dung lượng không?","Tóm tắt cho khách 3 dòng"].forEach(t=>{const b=document.createElement("button");b.className="wb";b.textContent=t;b.onclick=()=>{$("q").value=t;ask(t)};$("chips").appendChild(b)});
+$("ask").onclick=()=>ask($("q").value.trim()||"Tóm tắt tình trạng hệ thống và nêu điểm cần chú ý.");
+
+const BR={Deye:[["Email Solarman","text"],["Mật khẩu","password"],["App ID","text"],["App Secret","password"],["Số serial logger","text"]],
+GoodWe:[["Tài khoản SEMS","text"],["Mật khẩu","password"],["Station ID","text"]],
+Sungrow:[["App Key","text"],["Secret Key","password"],["Tài khoản iSolarCloud","text"],["Số serial","text"]],
+Luxpower:[["Tài khoản LuxPowerTek","text"],["Mật khẩu","password"],["Số serial dongle","text"]],
+Solis:[["API KeyId","text"],["API KeySecret","password"],["Số serial","text"]],
+Solax:[["Token ID","password"],["Số serial","text"]],
+Growatt:[["API Token","password"],["Số serial","text"]]};
+const DEV=[];
+const lb=$("lb");Object.keys(BR).forEach(k=>{const o=document.createElement("option");o.textContent=k;lb.appendChild(o)});
+function fields(){const box=$("lf");box.innerHTML="";BR[lb.value].forEach(([t,ty])=>{const l=document.createElement("label");l.style.cssText="flex:1;min-width:170px";l.textContent=t;const i=document.createElement("input");i.type=ty;i.className="aiq";i.autocomplete="off";l.appendChild(i);box.appendChild(l)})}
+lb.onchange=fields;fields();
+function lmsg(t,c){const m=$("lmsg");m.textContent=t;m.style.borderColor=c||""}
+function devs(){const box=$("ld");box.innerHTML="";DEV.forEach((d,i)=>{
+ const r=document.createElement("div");r.className="row k";r.style.marginBottom="6px";
+ const t=document.createElement("span");t.style.flex="1";t.style.minWidth="180px";
+ t.textContent=d.name+" · "+d.b+" · "+d.kwp+" kWp / "+d.cap+" kWh · "+d.mode;
+ const g=document.createElement("span");g.className="tag";g.textContent=d.ok==="live"?"Đã kết nối":d.ok==="err"?"Lỗi gateway":"Demo";
+ const v=document.createElement("button");v.className="play";v.textContent="Xem";v.onclick=()=>{$("kwp").value=d.kwp;$("cap").value=d.cap;MS=null;run();view();$("dg").scrollIntoView({behavior:"smooth"})};
+ const x=document.createElement("button");x.className="wb";x.style.flex="0 0 auto";x.style.minWidth="0";x.textContent="Xóa";x.onclick=()=>{DEV.splice(i,1);devs()};
+ r.append(t,g,v,x);box.appendChild(r)})}
+$("lbtn").onclick=async()=>{
+ const b=lb.value,ins=[...$("lf").querySelectorAll("input")];
+ if(ins.some(i=>!i.value.trim())){lmsg("Anh điền đủ các ô thông tin của hãng "+b+" nhé.","var(--bad)");return}
+ const gw=$("lg").value.trim();let ok="demo",txt="Chế độ demo: đã thêm thiết bị, dữ liệu vẫn là mô phỏng.",col="var(--gold)";
+ if(gw){lmsg("Đang kiểm tra gateway…");
+  try{const r=await fetch(gw.replace(/\/$/,"")+"/health");if(!r.ok)throw new Error("x");ok="live";txt="Gateway phản hồi. Sẵn sàng nối dữ liệu thật.";col="var(--bt)"}
+  catch(e){ok="err";txt="Không gọi được gateway. Trang đăng trong Claude bị chặn gọi ra ngoài, hãy mở bản chạy trên máy hoặc server của anh.";col="var(--bad)"}}
+ DEV.push({b,name:$("ln").value.trim()||"Khách "+(DEV.length+1),kwp:+$("lk").value||10,cap:+$("lc").value||20,ok,mode:$("lm").value});
+ ins.forEach(i=>i.value="");$("ln").value="";devs();lmsg(txt,col)};
+view();
+</script></body></html>
