@@ -46,7 +46,8 @@ select{padding:6px;border-radius:8px;border:1px solid var(--ln);background:var(-
 <div class="row" style="margin-top:10px">
 <label>Công suất pin Solar (kWp)<input type="number" id="kwp" value="10" min="1" max="100"></label>
 <label>Dung lượng pin (kWh)<input type="number" id="cap" value="20" min="5" max="200"></label>
-<label>Pin còn lại lúc 0h (%)<input type="number" id="soc0" value="30" min="0" max="100"></label></div>
+<label>Pin còn lại lúc 0h (%)<input type="number" id="soc0" value="30" min="0" max="100"></label>
+<label>Điện nhà dùng cả ngày (kWh)<input type="number" id="ldk" value="34.6" min="1" max="500" step="0.1"></label></div>
 <div class="dec" id="dec"></div><div class="verdict" id="verdict"></div></div>
 
 <div class="card"><h2>2. Sơ đồ dòng điện trong ngày</h2>
@@ -112,15 +113,15 @@ const PEAK=t=>t>=35&&t<45,CW=t=>t<8;
 const hh=t=>String(Math.floor(t/2)).padStart(2,"0")+":"+(t%2?"30":"00");
 const fmt=x=>Math.abs(x).toFixed(1);
 function sim(w,s0){
- const kwp=+$("kwp").value||10,cap=+$("cap").value||20,soc0=Math.min(100,Math.max(0,s0!=null?s0:(+$("soc0").value||0))),f=W[w||S.w].f,res=cap*.2,mx=5;
+ const sc=(+$("ldk").value>0?+$("ldk").value:34.6)/34.6,kwp=+$("kwp").value||10,cap=+$("cap").value||20,soc0=Math.min(100,Math.max(0,s0!=null?s0:(+$("soc0").value||0))),f=W[w||S.w].f,res=cap*.2,mx=5;
  const pvAt=t=>{const m=(t+.5)/2;return m>=6&&m<18?kwp*f*.59*Math.sin(Math.PI*(m-6)/12):0};
  let pvD=0,ld=0,sur=0,need=0;
- for(let t=0;t<48;t++){const p=pvAt(t),l=LOAD[Math.floor(t/2)];pvD+=p*.5;ld+=l*.5;if(p>l)sur+=(p-l)*.5;if(PEAK(t))need+=l*.5}
+ for(let t=0;t<48;t++){const p=pvAt(t),l=LOAD[Math.floor(t/2)]*sc;pvD+=p*.5;ld+=l*.5;if(p>l)sur+=(p-l)*.5;if(PEAK(t))need+=l*.5}
  let E=cap*soc0/100;const E0=E;
  const target=Math.min(cap*.95,Math.max(res,res+need-sur*.9)),gc=Math.max(0,target-E0);
  const rows=[];let peakGrid=0,cost=0,gridKwh=0;
  for(let t=0;t<48;t++){
-  const p=pvAt(t),l=LOAD[Math.floor(t/2)];let bat=0,grid=0,mode;
+  const p=pvAt(t),l=LOAD[Math.floor(t/2)]*sc;let bat=0,grid=0,mode;
   if(CW(t)&&E<target-1e-6){const c=Math.min(mx,(target-E)/.5);bat=c;grid=l+c;E+=c*.5;mode="gridcharge"}
   else if(p>=l){const c=Math.max(0,Math.min(p-l,mx,(cap*.95-E)/.5));bat=c;grid=-(p-l-c);E+=c*.5;mode=c>.05?"solarcharge":"solar"}
   else{const d=l-p;
@@ -178,7 +179,7 @@ function panel(){
 }
 function run(){R=sim();panel();chart();draw()}
 const wb=$("wbs");for(const k in W){const b=document.createElement("button");b.className="wb"+(k===S.w?" on":"");b.textContent=W[k].n;b.onclick=()=>{S.w=k;[...wb.children].forEach(x=>x.classList.remove("on"));b.classList.add("on");run()};wb.appendChild(b)}
-["kwp","cap","soc0"].forEach(i=>$(i).oninput=run);
+["kwp","cap","soc0","ldk"].forEach(i=>$(i).oninput=run);
 $("sl").oninput=e=>{S.t=+e.target.value;draw()};
 $("ch").onclick=e=>{const b=$("ch").getBoundingClientRect();const x=(e.clientX-b.left)/b.width*760;S.t=Math.max(0,Math.min(47,Math.floor((x-40)/700*48)));draw()};
 $("play").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("play").textContent="▶ Chạy 24h";return}
@@ -220,7 +221,7 @@ const ms=$("msel");for(let i=0;i<12;i++){const o=document.createElement("option"
 ms.onchange=view;
 $("vd").onclick=()=>{V="day";$("vd").classList.add("on");$("vm").classList.remove("on");view()};
 $("vm").onclick=()=>{V="month";$("vm").classList.add("on");$("vd").classList.remove("on");view()};
-["kwp","cap","soc0"].forEach(i=>$(i).addEventListener("input",()=>{MS=null;view()}));
+["kwp","cap","soc0","ldk"].forEach(i=>$(i).addEventListener("input",()=>{MS=null;view()}));
 async function ask(q){
  const out=$("aiout");
  if(!(window.claude&&claude.use)){out.textContent="Trợ lý Claude chỉ chạy khi mở trang này trong Claude.";return}
